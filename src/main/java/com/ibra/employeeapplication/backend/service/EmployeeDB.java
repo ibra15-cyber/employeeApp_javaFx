@@ -63,6 +63,7 @@ public class EmployeeDB<T> {
 
         Employee<T> removedEmployee = employees.remove(employeeId);
         System.out.println("Employee removed successfully: " + removedEmployee.getName());
+        logger.info("Employee removed successfully: " + removedEmployee.getName());
         return true;
     }
 
@@ -270,8 +271,8 @@ public class EmployeeDB<T> {
         }
 
         employees.put(employee.getEmployeeId(), employee);
-        System.out.println(employee.getName());
-        logger.info("Employee updated successfully. Field: ");
+        System.out.println(employee.getName() + " updated successfully");
+        logger.info("Employee " + employee.getName() + " updated successfully ");
         return true;
     }
 
