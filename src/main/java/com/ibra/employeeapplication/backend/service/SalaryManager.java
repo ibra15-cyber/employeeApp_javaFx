@@ -1,6 +1,7 @@
 package com.ibra.employeeapplication.backend.service;
 
 import com.ibra.employeeapplication.backend.entity.Employee;
+import com.ibra.employeeapplication.backend.exception.InvalidSalaryException;
 
 import java.util.Comparator;
 import java.util.DoubleSummaryStatistics;
@@ -33,7 +34,11 @@ public class SalaryManager<T> {
         eligibleEmployees.forEach(emp -> {
             double currentSalary = emp.getSalary();
             double newSalary = currentSalary * (1 + percentageRaise / 100);
-            emp.setSalary(newSalary);
+            try {
+                emp.setSalary(newSalary);
+            } catch (InvalidSalaryException e) {
+                throw new RuntimeException(e);
+            }
         });
 
         return eligibleEmployees.size();
@@ -57,7 +62,11 @@ public class SalaryManager<T> {
         eligibleEmployees.forEach(emp -> {
             double currentSalary = emp.getSalary();
             double newSalary = currentSalary * (1 + percentageRaise / 100);
-            emp.setSalary(newSalary);
+            try {
+                emp.setSalary(newSalary);
+            } catch (InvalidSalaryException e) {
+                throw new RuntimeException(e);
+            }
         });
 
         return eligibleEmployees.size();
@@ -81,7 +90,11 @@ public class SalaryManager<T> {
         eligibleEmployees.forEach(emp -> {
             double currentSalary = emp.getSalary();
             double newSalary = currentSalary * (1 + percentageRaise / 100);
-            emp.setSalary(newSalary);
+            try {
+                emp.setSalary(newSalary);
+            } catch (InvalidSalaryException e) {
+                throw new RuntimeException(e);
+            }
         });
 
         return eligibleEmployees.size();

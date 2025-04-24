@@ -2,6 +2,9 @@ package com.ibra.employeeapplication;
 
 import com.ibra.employeeapplication.backend.controller.EmployeeDisplay;
 import com.ibra.employeeapplication.backend.entity.Employee;
+import com.ibra.employeeapplication.backend.exception.EmployeeNotFoundException;
+import com.ibra.employeeapplication.backend.exception.InvalidDepartmentException;
+import com.ibra.employeeapplication.backend.exception.InvalidSalaryException;
 import com.ibra.employeeapplication.backend.service.*;
 import javafx.application.Application;
 import javafx.beans.property.SimpleStringProperty;
@@ -30,7 +33,7 @@ public class EmployeeApplication extends Application {
     private TextArea outputArea;
 
     @Override
-    public void start(Stage primaryStage) {
+    public void start(Stage primaryStage) throws InvalidDepartmentException, InvalidSalaryException, EmployeeNotFoundException {
         // Initialize components
         database = new EmployeeDB();
         searchEngine = new EmployeeSearchEngine<>(database);
@@ -106,13 +109,58 @@ public class EmployeeApplication extends Application {
         Button searchButton = new Button("Search");
         searchButton.setOnAction(e -> {
             String term = searchField.getText().trim();
-            if (!term.isEmpty()) {
-                List<Employee<UUID>> results = searchEngine.findByName(term);
-                employeeData.setAll(results);
-            } else {
-                refreshEmployeeTable();
+
+            try {
+
+                if (term.isEmpty()) {
+                    refreshEmployeeTable(); // Show all if no search term
+                    return;
+                }
+
+                List<Employee<UUID>> results = new ArrayList<>();
+
+                // Match by name
+                results.addAll(searchEngine.findByName(term));
+
+                // Match by department
+                results.addAll(searchEngine.findByDepartment(term));
+
+                // Try parsing as a number (rating or salary)
+                try {
+                    double value = Double.parseDouble(term);
+                    results.addAll(searchEngine.findByMinimumRating(value));
+                    results.addAll(searchEngine.findBySalaryRange(value, Double.MAX_VALUE));
+                } catch (NumberFormatException ignored) {
+                    // Not a numeric value; ignore
+                }
+
+                // Match for active employees
+                if (term.equalsIgnoreCase("active")) {
+                    results.addAll(searchEngine.findActiveEmployees());
+                }
+
+                // Remove duplicates
+                Set<Employee<UUID>> uniqueResults = new HashSet<>(results);
+
+                // Throw if empty
+                if (uniqueResults.isEmpty()) {
+                    throw new EmployeeNotFoundException("No matching employees found.");
+                }
+
+                employeeData.setAll(uniqueResults);
+
+            } catch (EmployeeNotFoundException ex) {
+                // Handle it directly (e.g., show alert)
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Search Result");
+                alert.setHeaderText(null);
+                alert.setContentText(ex.getMessage());
+                alert.showAndWait();
+            } catch (InvalidDepartmentException ex) {
+                throw new RuntimeException(ex);
             }
         });
+
         searchBox.getChildren().addAll(new Label("Search:"), searchField, searchButton);
 
         // Create employee table
@@ -485,57 +533,69 @@ public class EmployeeApplication extends Application {
 
         Optional<Map<String, Object>> result = dialog.showAndWait();
         result.ifPresent(updates -> {
-            // Update all fields
-            database.updateEmployeeDetails(employee.getEmployeeId(), "name", updates.get("name"));
-            database.updateEmployeeDetails(employee.getEmployeeId(), "department", updates.get("department"));
-            database.updateEmployeeDetails(employee.getEmployeeId(), "salary", updates.get("salary"));
-            database.updateEmployeeDetails(employee.getEmployeeId(), "performanceRating", updates.get("performanceRating"));
-            database.updateEmployeeDetails(employee.getEmployeeId(), "yearsOfExperience", updates.get("yearsOfExperience"));
-            database.updateEmployeeDetails(employee.getEmployeeId(), "isActive", updates.get("isActive"));
 
-            refreshEmployeeTable();
+            try {             // Update all fields
+                    database.updateEmployeeDetails(employee.getEmployeeId(), "name", updates.get("name"));
+                    database.updateEmployeeDetails(employee.getEmployeeId(), "department", updates.get("department"));
+                    database.updateEmployeeDetails(employee.getEmployeeId(), "salary", updates.get("salary"));
+                    database.updateEmployeeDetails(employee.getEmployeeId(), "performanceRating", updates.get("performanceRating"));
+                    database.updateEmployeeDetails(employee.getEmployeeId(), "yearsOfExperience", updates.get("yearsOfExperience"));
+                    database.updateEmployeeDetails(employee.getEmployeeId(), "isActive", updates.get("isActive"));
+
+                    refreshEmployeeTable();
+            } catch (EmployeeNotFoundException | InvalidSalaryException | InvalidDepartmentException e) {
+                showAlert("Update Error", e.getMessage()); // Custom method to show JavaFX Alert
+            } catch (IllegalArgumentException e) {
+                showAlert("Invalid Input", e.getMessage());
+            }
         });
     }
+
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
 
     private void refreshEmployeeTable() {
         employeeData.setAll(database.getAllEmployees());
     }
 
-    private void addSampleData() {
+    private void addSampleData() throws InvalidDepartmentException, InvalidSalaryException, EmployeeNotFoundException {
         // Add sample employees
-        database.addEmployee(new Employee<>(UUID.randomUUID(), true, 15,
-                78000.0, 4.2, "IT", "John James"));
-
             // Add sample employees
             database.addEmployee(new Employee<>(UUID.randomUUID(), true, 15,
                     78000.0, 4.2, "IT", "John James"));
 
             database.addEmployee(new Employee<>(UUID.randomUUID(), true, 5,
                     65000.0, 3.8, "HR", "Sarah Johnson"));
-
-            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 12,
-                    92000.0, 4.5, "Finance", "Michael Brown"));
-
-            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 9,
-                    82000.0, 4.7, "IT", "Emily Wilson"));
-
-            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 4,
-                    68000.0, 3.5, "Marketing", "Robert Smith"));
-
-            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 15,
-                    105000.0, 4.9, "Finance", "Jennifer Lee"));
-
-            database.addEmployee(new Employee<>(UUID.randomUUID(), false, 2,
-                    58000.0, 3.2, "HR", "David Taylor"));
-
-            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 7,
-                    89000.0, 4.3, "IT", "Jessica Martinez"));
-
-            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 6,
-                    72000.0, 4.0, "Marketing", "Andrew Wilson"));
-
-            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 10,
-                    98000.0, 4.6, "Finance", "Sophia Chen"));
+//
+//            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 12,
+//                    92000.0, 4.5, "Finance", "Michael Brown"));
+//
+//            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 9,
+//                    82000.0, 4.7, "IT", "Emily Wilson"));
+//
+//            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 4,
+//                    68000.0, 3.5, "Marketing", "Robert Smith"));
+//
+//            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 15,
+//                    105000.0, 4.9, "Finance", "Jennifer Lee"));
+//
+//            database.addEmployee(new Employee<>(UUID.randomUUID(), false, 2,
+//                    58000.0, 3.2, "HR", "David Taylor"));
+//
+//            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 7,
+//                    89000.0, 4.3, "IT", "Jessica Martinez"));
+////
+////            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 6,
+////                    72000.0, 4.0, "Marketing", "Andrew Wilson"));
+//
+//            database.addEmployee(new Employee<>(UUID.randomUUID(), true, 10,
+//                    98000.0, 4.6, "Finance", "Sophia Chen"));
     }
 
     public static void main(String[] args) {

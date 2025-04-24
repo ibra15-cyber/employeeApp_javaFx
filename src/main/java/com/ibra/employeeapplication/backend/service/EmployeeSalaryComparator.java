@@ -15,6 +15,7 @@ public class EmployeeSalaryComparator<T> implements Comparator<Employee<T>> {
     }
 }
 
+
 /**
  * Comparator to sort employees by department name in alphabetical order
  */
